@@ -1,0 +1,85 @@
+name: docker-compose-smoke-test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  compose-smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build PostgreSQL + pgvector + PGroonga image
+        run: docker compose build
+
+      - name: Start container
+        run: docker compose up -d
+
+      - name: Wait for healthy
+        run: |
+          for i in {1..40}; do
+            status=$(docker inspect -f '{{.State.Health.Status}}' pgvector-rag-postgres 2>/dev/null || echo "missing")
+            echo "[$i] health: $status"
+            if [ "$status" = "healthy" ]; then exit 0; fi
+            if [ "$status" = "unhealthy" ]; then
+              docker compose logs postgres
+              exit 1
+            fi
+            sleep 3
+          done
+          echo "Timed out waiting for healthy"
+          docker compose logs postgres
+          exit 1
+
+      - name: Verify pgvector + PGroonga installed
+        run: |
+          output=$(docker exec pgvector-rag-postgres psql -U rag -d ragdb -tAc "\dx" | sort)
+          echo "$output"
+          echo "$output" | grep -q "vector|0.8" || { echo "pgvector missing"; exit 1; }
+          echo "$output" | grep -q "pgroonga|4." || { echo "PGroonga missing"; exit 1; }
+
+      - name: Smoke test - HNSW index on vector column
+        run: |
+          docker exec pgvector-rag-postgres psql -U rag -d ragdb -c "
+            SELECT indexname, indexdef FROM pg_indexes
+            WHERE tablename = 'smoke_test' AND indexname = 'smoke_test_embedding_hnsw';
+          " | tee /tmp/hnsw.out
+          grep -q "USING hnsw" /tmp/hnsw.out || { echo "HNSW index not found"; exit 1; }
+
+      - name: Smoke test - PGroonga index scan actually used
+        run: |
+          docker exec pgvector-rag-postgres psql -U rag -d ragdb -c "
+            EXPLAIN (FORMAT TEXT) SELECT id FROM smoke_test WHERE content &@ 'sample';
+          " | tee /tmp/pgroonga.out
+          grep -q "Index Scan using smoke_test_content_pgroonga" /tmp/pgroonga.out \
+            || { echo "PGroonga index scan not used"; exit 1; }
+
+      - name: Smoke test - pgvector distance query
+        run: |
+          docker exec pgvector-rag-postgres psql -U rag -d ragdb -c "
+            SELECT id, embedding <-> '[0.1, 0.1, 0.9]' AS distance
+            FROM smoke_test ORDER BY distance LIMIT 3;
+          " | tee /tmp/distance.out
+          grep -q "0.9" /tmp/distance.out || { echo "distance query failed"; exit 1; }
+
+      - name: Show PostgreSQL / pgvector / PGroonga versions
+        if: always()
+        run: |
+          docker exec pgvector-rag-postgres psql -U rag -d ragdb -c "
+            SELECT version();
+            SELECT extname, extversion FROM pg_extension WHERE extname IN ('vector','pgroonga') ORDER BY extname;
+          "
+
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v

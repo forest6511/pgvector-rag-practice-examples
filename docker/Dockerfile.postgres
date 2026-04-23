@@ -1,0 +1,25 @@
+# PostgreSQL 17 + pgvector 0.8.2 + PGroonga
+# Base: pgvector 公式 image(Debian trixie + PG17 + pgvector 0.8.2 同梱)
+# Add:  PGroonga を Groonga apt リポジトリから追加
+
+FROM pgvector/pgvector:0.8.2-pg17-trixie
+
+# PGroonga apt リポジトリの追加と PGroonga インストール
+# trixie は bookworm の次(Debian 13)。Groonga apt では trixie 版を利用
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      curl \
+      ca-certificates \
+      lsb-release \
+ && curl -sSf \
+      "https://packages.groonga.org/debian/groonga-apt-source-latest-$(lsb_release --codename --short).deb" \
+      -o /tmp/groonga-apt-source.deb \
+ && apt-get install -y --no-install-recommends /tmp/groonga-apt-source.deb \
+ && apt-get update \
+ && apt-get install -y --no-install-recommends \
+      postgresql-17-pgdg-pgroonga \
+      groonga-tokenizer-mecab \
+ && rm -rf /var/lib/apt/lists/* /tmp/groonga-apt-source.deb
+
+# PGroonga のバージョン確認(ビルド時のログに残す)
+RUN dpkg -l | grep -iE "pgroonga|groonga" || true

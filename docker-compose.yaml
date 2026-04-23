@@ -1,0 +1,48 @@
+# pgvector-rag-practice サンプル用 Docker Compose
+# PostgreSQL 17 + pgvector 0.8.2 + PGroonga 4.0.6 を単一コンテナで起動する
+#
+# 使い方:
+#   docker compose up -d
+#   docker compose exec postgres psql -U rag -d ragdb
+#   docker compose down              # コンテナ停止
+#   docker compose down -v           # ボリュームも削除(クリーンスタート)
+#
+# 対応章: Ch03-12 全章のサンプル実装で本 compose を前提にする
+
+services:
+  postgres:
+    build:
+      context: ./docker
+      dockerfile: Dockerfile.postgres
+    image: pgvector-rag-practice:pg17-pgvector0.8.2-pgroonga4.0.6
+    container_name: pgvector-rag-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: rag
+      POSTGRES_PASSWORD: ragpass
+      POSTGRES_DB: ragdb
+      # UTF-8 で統一(日本語テキストは PGroonga 側が TokenMecab 等で処理するため、
+      # PostgreSQL locale は C.UTF-8 で十分。ja_JP.UTF-8 は Debian 基本イメージ
+      # には含まれないため initdb が失敗する)
+      LANG: C.UTF-8
+      POSTGRES_INITDB_ARGS: "--locale=C.UTF-8 --encoding=UTF8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+      - ./docker/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+    command:
+      - postgres
+      - -c
+      - config_file=/etc/postgresql/postgresql.conf
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rag -d ragdb"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  pgdata:
+    driver: local
