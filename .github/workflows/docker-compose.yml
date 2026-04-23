@@ -66,11 +66,14 @@ jobs:
 
       - name: Smoke test - pgvector distance query
         run: |
-          docker exec pgvector-rag-postgres psql -U rag -d ragdb -c "
-            SELECT id, embedding <-> '[0.1, 0.1, 0.9]' AS distance
-            FROM smoke_test ORDER BY distance LIMIT 3;
-          " | tee /tmp/distance.out
-          grep -q "0.9" /tmp/distance.out || { echo "distance query failed"; exit 1; }
+          # クエリ [0.1, 0.1, 0.9] に最も近いのは id=3([0,0,1]、L2 距離 0.17)
+          # 次点で id=1, 2(L2 距離 1.28)。TopK=1 で id=3 が返るはず
+          top_id=$(docker exec pgvector-rag-postgres psql -U rag -d ragdb -tAc "
+            SELECT id FROM smoke_test
+            ORDER BY embedding <-> '[0.1, 0.1, 0.9]' LIMIT 1;
+          ")
+          echo "top id: $top_id"
+          [ "$top_id" = "3" ] || { echo "expected top=3 but got $top_id"; exit 1; }
 
       - name: Show PostgreSQL / pgvector / PGroonga versions
         if: always()
