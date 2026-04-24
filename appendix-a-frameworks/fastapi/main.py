@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 
 import asyncpg
 from fastapi import FastAPI
@@ -7,24 +8,23 @@ from pydantic import BaseModel
 
 from embedder import embed
 
-app  = FastAPI()
 pool: asyncpg.Pool | None = None
 
 
-@app.on_event("startup")
-async def startup() -> None:
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     global pool
-    dsn  = os.environ.get(
+    dsn = os.environ.get(
         "DATABASE_URL",
         "postgresql://rag:ragpass@localhost:5432/ragdb",
     )
     pool = await asyncpg.create_pool(dsn, init=register_vector)
-
-
-@app.on_event("shutdown")
-async def shutdown() -> None:
+    yield
     if pool is not None:
         await pool.close()
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 class DocIn(BaseModel):
