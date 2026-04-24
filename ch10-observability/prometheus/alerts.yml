@@ -1,0 +1,21 @@
+groups:
+  - name: pgvector-rag
+    rules:
+      - alert: PgvectorHighLatency
+        expr: histogram_quantile(0.95,
+                rate(pg_stat_statements_exec_time_bucket[5m])) > 0.1
+        for: 5m
+        annotations:
+          summary: "pgvector p95 latency > 100ms (5m)"
+
+      - alert: PgvectorConnectionsNear
+        expr: pg_stat_database_numbackends{datname="ragdb"}
+              / on() pg_settings_max_connections > 0.8
+        for: 3m
+        annotations:
+          summary: "Connections > 80 percent of max"
+
+      - alert: PgvectorAutovacuumStalled
+        expr: time() - pg_stat_user_tables_last_autovacuum > 7 * 24 * 3600
+        annotations:
+          summary: "autovacuum not run for 7 days"

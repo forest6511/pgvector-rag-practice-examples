@@ -1,0 +1,41 @@
+services:
+  postgres:
+    image: ghcr.io/pgvector/pgvector:pg17
+    environment:
+      POSTGRES_USER: rag
+      POSTGRES_PASSWORD: rag
+      POSTGRES_DB: ragdb
+    ports: ["5432:5432"]
+
+  postgres_exporter:
+    image: prometheuscommunity/postgres-exporter:v0.15.0
+    environment:
+      DATA_SOURCE_NAME: "postgresql://rag:rag@postgres:5432/ragdb?sslmode=disable"
+    ports: ["9187:9187"]
+    depends_on: [postgres]
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    ports: ["9090:9090"]
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    ports: ["3002:3000"]
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    depends_on: [prometheus]
+
+  pgbouncer:
+    image: edoburu/pgbouncer:1.23.1
+    environment:
+      DB_USER: rag
+      DB_PASSWORD: rag
+      DB_HOST: postgres
+      DB_NAME: ragdb
+      POOL_MODE: transaction
+      MAX_CLIENT_CONN: 1000
+      DEFAULT_POOL_SIZE: 50
+    ports: ["6432:5432"]
+    depends_on: [postgres]

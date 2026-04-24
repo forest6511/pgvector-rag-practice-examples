@@ -1,0 +1,22 @@
+name: recall-ci
+
+on:
+  schedule:
+    - cron: '0 15 * * 0'  # 日曜 00:00 JST
+  workflow_dispatch:
+
+jobs:
+  recall:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start stack
+        run: docker compose up -d
+      - name: Wait for postgres
+        run: timeout 60 bash -c "until docker compose exec -T postgres pg_isready; do sleep 1; done"
+      - name: Seed + index
+        run: |
+          docker compose exec -T postgres psql -U rag -d ragdb -f /sql/seed.sql
+          docker compose exec -T postgres psql -U rag -d ragdb -f /sql/setup.sql
+      - name: Run recall CI
+        run: RECALL_THRESHOLD=0.90 bash scripts/recall-ci.sh
