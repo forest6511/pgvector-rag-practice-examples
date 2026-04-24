@@ -2,7 +2,7 @@ name: recall-ci
 
 on:
   schedule:
-    - cron: '0 15 * * 0'  # 日曜 00:00 JST
+    - cron: '0 15 * * 6'  # UTC 土曜 15:00 = JST 日曜 00:00
   workflow_dispatch:
 
 jobs:
