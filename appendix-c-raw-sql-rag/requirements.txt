@@ -1,0 +1,4 @@
+psycopg[binary]==3.2.*
+pgvector==0.3.*
+openai==1.50.*
+tiktoken==0.8.*
