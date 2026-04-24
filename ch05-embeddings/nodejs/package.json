@@ -1,0 +1,17 @@
+{
+  "name": "ch05-embeddings-nodejs",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "start": "ts-node embed.ts"
+  },
+  "dependencies": {
+    "openai": "^4.70.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "ts-node": "^10.9.0",
+    "@types/node": "^22.0.0"
+  }
+}

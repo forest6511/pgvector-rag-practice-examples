@@ -1,0 +1,14 @@
+{
+  "documents": [
+    {"doc_id": "d1", "text": "pgvector は PostgreSQL 13 以降で動作するベクトル類似検索の拡張です。HNSW と IVFFlat の 2 種類のインデックスを提供します。"},
+    {"doc_id": "d2", "text": "Docker Compose を使うと、PostgreSQL 17 と pgvector 0.8.2 の組み合わせを 1 コマンドで起動できます。"},
+    {"doc_id": "d3", "text": "HNSW インデックスは Hierarchical Navigable Small World の略で、近似最近傍探索のためのグラフ構造です。"},
+    {"doc_id": "d4", "text": "Matryoshka Embeddings は、より低次元でも意味を保つように訓練された埋め込みで、ストレージを削減できます。"},
+    {"doc_id": "d5", "text": "multilingual-e5-large は Microsoft が公開した多言語埋め込みモデルで、日本語にも対応しています。"}
+  ],
+  "queries": [
+    {"qid": "q1", "text": "pgvector はどのバージョンの PostgreSQL で動きますか?", "relevant": ["d1"]},
+    {"qid": "q2", "text": "Docker で pgvector を使う方法", "relevant": ["d2"]},
+    {"qid": "q3", "text": "HNSW とは?", "relevant": ["d3"]}
+  ]
+}
