@@ -6,11 +6,15 @@ Matryoshka(dimensions パラメータ)対応。レート制限対応は batch/ra
 from __future__ import annotations
 
 import os
+from functools import lru_cache
 from typing import Iterable
 
 from openai import OpenAI
 
-client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+
+@lru_cache(maxsize=1)
+def _client() -> OpenAI:
+    return OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
 
 def embed_small(texts: list[str], dimensions: int | None = None) -> list[list[float]]:
@@ -18,7 +22,7 @@ def embed_small(texts: list[str], dimensions: int | None = None) -> list[list[fl
     kwargs: dict = {"model": "text-embedding-3-small", "input": texts}
     if dimensions is not None:
         kwargs["dimensions"] = dimensions
-    resp = client.embeddings.create(**kwargs)
+    resp = _client().embeddings.create(**kwargs)
     return [d.embedding for d in resp.data]
 
 
@@ -27,7 +31,7 @@ def embed_large(texts: list[str], dimensions: int | None = None) -> list[list[fl
     kwargs: dict = {"model": "text-embedding-3-large", "input": texts}
     if dimensions is not None:
         kwargs["dimensions"] = dimensions
-    resp = client.embeddings.create(**kwargs)
+    resp = _client().embeddings.create(**kwargs)
     return [d.embedding for d in resp.data]
 
 

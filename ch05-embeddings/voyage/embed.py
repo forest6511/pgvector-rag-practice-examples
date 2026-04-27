@@ -7,19 +7,23 @@ voyage-multilingual-2 は旧世代扱い。詳細は https://docs.voyageai.com/d
 from __future__ import annotations
 
 import os
+from functools import lru_cache
 
 import voyageai
 
-client = voyageai.Client(api_key=os.environ["VOYAGE_API_KEY"])
+
+@lru_cache(maxsize=1)
+def _client() -> voyageai.Client:
+    return voyageai.Client(api_key=os.environ["VOYAGE_API_KEY"])
 
 
 def embed(texts: list[str], model: str = "voyage-4-lite") -> list[list[float]]:
-    resp = client.embed(texts, model=model, input_type="document")
+    resp = _client().embed(texts, model=model, input_type="document")
     return resp.embeddings
 
 
 def embed_query(texts: list[str], model: str = "voyage-4-lite") -> list[list[float]]:
-    resp = client.embed(texts, model=model, input_type="query")
+    resp = _client().embed(texts, model=model, input_type="query")
     return resp.embeddings
 
 

@@ -1,8 +1,14 @@
 """クエリと検索結果から OpenAI chat.completions で回答を生成する。"""
+from functools import lru_cache
+
 from openai import OpenAI
 
 
-OAI        = OpenAI()
+@lru_cache(maxsize=1)
+def _client() -> OpenAI:
+    return OpenAI()
+
+
 CHAT_MODEL = "gpt-4o-mini"
 
 
@@ -27,7 +33,7 @@ def build_messages(query: str, hits: list[dict]) -> list[dict]:
 
 
 def generate(query: str, hits: list[dict]) -> str:
-    resp = OAI.chat.completions.create(
+    resp = _client().chat.completions.create(
         model=CHAT_MODEL,
         messages=build_messages(query, hits),
         temperature=0.2,

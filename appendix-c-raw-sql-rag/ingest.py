@@ -6,6 +6,7 @@
 import argparse
 import os
 import sys
+from functools import lru_cache
 
 import psycopg
 import tiktoken
@@ -15,23 +16,32 @@ from pgvector.psycopg import register_vector
 
 DSN   = os.environ.get("DATABASE_URL", "postgresql://rag:ragpass@localhost:5432/ragdb")
 MODEL = "text-embedding-3-small"
-ENC   = tiktoken.get_encoding("cl100k_base")
-OAI   = OpenAI()
+
+
+@lru_cache(maxsize=1)
+def _encoder():
+    return tiktoken.get_encoding("cl100k_base")
+
+
+@lru_cache(maxsize=1)
+def _client() -> OpenAI:
+    return OpenAI()
 
 
 def chunk(text: str, target_tokens: int = 400, overlap: int = 50) -> list[str]:
-    tokens = ENC.encode(text)
+    enc = _encoder()
+    tokens = enc.encode(text)
     pieces = []
     i = 0
     while i < len(tokens):
         piece = tokens[i : i + target_tokens]
-        pieces.append(ENC.decode(piece))
+        pieces.append(enc.decode(piece))
         i += target_tokens - overlap
     return pieces
 
 
 def embed_batch(texts: list[str]) -> list[list[float]]:
-    resp = OAI.embeddings.create(model=MODEL, input=texts)
+    resp = _client().embeddings.create(model=MODEL, input=texts)
     return [d.embedding for d in resp.data]
 
 

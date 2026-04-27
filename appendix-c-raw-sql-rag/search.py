@@ -1,5 +1,6 @@
 """クエリ文字列を embedding 化し、docs から類似検索で上位 K 件を返す。"""
 import os
+from functools import lru_cache
 
 import psycopg
 from openai import OpenAI
@@ -8,11 +9,15 @@ from pgvector.psycopg import register_vector
 
 DSN   = os.environ.get("DATABASE_URL", "postgresql://rag:ragpass@localhost:5432/ragdb")
 MODEL = "text-embedding-3-small"
-OAI   = OpenAI()
+
+
+@lru_cache(maxsize=1)
+def _client() -> OpenAI:
+    return OpenAI()
 
 
 def embed(text: str) -> list[float]:
-    return OAI.embeddings.create(model=MODEL, input=text).data[0].embedding
+    return _client().embeddings.create(model=MODEL, input=text).data[0].embedding
 
 
 def search(query: str, top_k: int = 20) -> list[dict]:
