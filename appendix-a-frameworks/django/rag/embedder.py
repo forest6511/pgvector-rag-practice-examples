@@ -1,10 +1,16 @@
 import os
+from functools import lru_cache
+
 from openai import OpenAI
 
-_client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
-_MODEL  = "text-embedding-3-small"
+_MODEL = "text-embedding-3-small"
+
+
+@lru_cache(maxsize=1)
+def _client() -> OpenAI:
+    return OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
 
 def embed(text: str) -> list[float]:
-    resp = _client.embeddings.create(model=_MODEL, input=text)
+    resp = _client().embeddings.create(model=_MODEL, input=text)
     return resp.data[0].embedding
