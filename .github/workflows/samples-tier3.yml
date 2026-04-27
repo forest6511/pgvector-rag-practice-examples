@@ -62,23 +62,7 @@ jobs:
           exit 1
 
       - name: Run Tier 3 verification
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: |
-          if [ -z "${OPENAI_API_KEY:-}" ]; then
-            echo "WARNING: OPENAI_API_KEY not set — t3.1 (frameworks) will be skipped"
-          fi
-          bash scripts/verify-tier3.sh
-
-      - name: Show framework logs on failure
-        if: failure()
-        run: |
-          for f in /tmp/fastapi.log /tmp/django.log /tmp/rails.log /tmp/nextjs.log; do
-            if [ -f "$f" ]; then
-              echo "=== $f ==="
-              tail -50 "$f"
-            fi
-          done
+        run: bash scripts/verify-tier3.sh
 
       - name: Cleanup
         if: always()

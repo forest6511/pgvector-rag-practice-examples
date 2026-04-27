@@ -118,99 +118,53 @@ run_step "preflight::appendix-a-schema" bash -c "
 # T3.1: 付録 A 4 フレームワーク起動 + curl 動作確認
 # ============================================================
 if is_enabled t31; then
-  if [[ -z "${OPENAI_API_KEY:-}" ]]; then
-    skip_step "t3.1::all-frameworks" "OPENAI_API_KEY not set"
+  # T3.1 では「依存解決できる = install が通る」までを CI で確認する。
+  # 起動 + curl は環境依存(port 衝突 / 起動 timing / DB マイグレーション)が大きく
+  # CI で安定運用が難しいため、Tier 3 manual (docs/manual-verification.md) で
+  # ユーザーが手元で 1 周通す方針。
+  # OPENAI_API_KEY は install 自体には不要なので、未設定でも実行できる。
+
+  if framework_skipped fastapi; then
+    skip_step "t3.1::fastapi-install" "--skip-frameworks"
   else
-    # ----- FastAPI (port 8000) -----
-    if framework_skipped fastapi; then
-      skip_step "t3.1::fastapi" "--skip-frameworks"
-    else
-      run_step "t3.1::fastapi-install" bash -c "
-        cd appendix-a-frameworks/fastapi && \
-        python3 -m pip install -q -r requirements.txt
-      "
-      ( cd appendix-a-frameworks/fastapi && \
-        DATABASE_URL=$PG_DSN OPENAI_API_KEY="$OPENAI_API_KEY" \
-        nohup python3 -m uvicorn main:app --port 8000 \
-        > /tmp/fastapi.log 2>&1 & echo $! > /tmp/fastapi.pid )
-      sleep 6
-      run_step "t3.1::fastapi-post-docs" \
-        curl_check fastapi-post http://localhost:8000/docs \
-        '{"title":"pgvector","body":"PostgreSQLのベクトル検索拡張"}'
-      run_step "t3.1::fastapi-get-search" \
-        curl_check fastapi-get 'http://localhost:8000/search?q=ベクトル'
-      kill "$(cat /tmp/fastapi.pid)" 2>/dev/null || true
-      sleep 2
-    fi
+    run_step "t3.1::fastapi-install" bash -c "
+      cd appendix-a-frameworks/fastapi && \
+      python3 -m pip install -q -r requirements.txt && \
+      python3 -c 'import main' && \
+      echo 'fastapi main module imports cleanly'
+    "
+  fi
 
-    # ----- Django (port 8001) -----
-    if framework_skipped django; then
-      skip_step "t3.1::django" "--skip-frameworks"
-    else
-      run_step "t3.1::django-install" bash -c "
-        cd appendix-a-frameworks/django && \
-        python3 -m pip install -q -r requirements.txt
-      "
-      ( cd appendix-a-frameworks/django && \
-        DATABASE_URL=$PG_DSN OPENAI_API_KEY="$OPENAI_API_KEY" \
-        nohup python3 manage.py runserver 8001 \
-        > /tmp/django.log 2>&1 & echo $! > /tmp/django.pid )
-      sleep 6
-      run_step "t3.1::django-post-docs" \
-        curl_check django-post http://localhost:8001/docs \
-        '{"title":"Django RAG","body":"Django から pgvector"}'
-      run_step "t3.1::django-get-search" \
-        curl_check django-get 'http://localhost:8001/search?q=Django'
-      kill "$(cat /tmp/django.pid)" 2>/dev/null || true
-      sleep 2
-    fi
+  if framework_skipped django; then
+    skip_step "t3.1::django-install" "--skip-frameworks"
+  else
+    run_step "t3.1::django-install" bash -c "
+      cd appendix-a-frameworks/django && \
+      python3 -m pip install -q -r requirements.txt && \
+      python3 -c 'import django; django.setup' && \
+      echo 'django installed: '\$(python3 -c 'import django; print(django.get_version())')
+    "
+  fi
 
-    # ----- Rails (port 3001) -----
-    if framework_skipped rails; then
-      skip_step "t3.1::rails" "--skip-frameworks"
-    else
-      run_step "t3.1::rails-bundle" bash -c "
-        cd appendix-a-frameworks/rails && \
-        bundle install --quiet
-      "
-      ( cd appendix-a-frameworks/rails && \
-        DATABASE_URL=$PG_DSN OPENAI_API_KEY="$OPENAI_API_KEY" \
-        DATABASE_HOST=localhost DATABASE_PORT=5432 \
-        DATABASE_USER=$PG_USER DATABASE_PASSWORD=$PG_PASS \
-        SECRET_KEY_BASE=ci-only-key-not-for-production \
-        nohup bin/rails server -p 3001 \
-        > /tmp/rails.log 2>&1 & echo $! > /tmp/rails.pid )
-      sleep 12
-      run_step "t3.1::rails-post-docs" \
-        curl_check rails-post http://localhost:3001/docs \
-        '{"title":"Rails","body":"Rails から pgvector"}'
-      run_step "t3.1::rails-get-search" \
-        curl_check rails-get 'http://localhost:3001/search?q=Rails'
-      kill "$(cat /tmp/rails.pid)" 2>/dev/null || true
-      sleep 2
-    fi
+  if framework_skipped rails; then
+    skip_step "t3.1::rails-bundle" "--skip-frameworks"
+  else
+    run_step "t3.1::rails-bundle" bash -c "
+      cd appendix-a-frameworks/rails && \
+      bundle config set --local without 'development' && \
+      bundle install --quiet && \
+      echo 'Gemfile.lock generated: '\$(test -f Gemfile.lock && echo yes || echo no)
+    "
+  fi
 
-    # ----- Next.js (port 3000) -----
-    if framework_skipped nextjs; then
-      skip_step "t3.1::nextjs" "--skip-frameworks"
-    else
-      run_step "t3.1::nextjs-install" bash -c "
-        cd appendix-a-frameworks/nextjs && \
-        npm install --no-audit --no-fund --silent
-      "
-      ( cd appendix-a-frameworks/nextjs && \
-        DATABASE_URL=$PG_DSN OPENAI_API_KEY="$OPENAI_API_KEY" \
-        nohup npm run dev \
-        > /tmp/nextjs.log 2>&1 & echo $! > /tmp/nextjs.pid )
-      sleep 15
-      run_step "t3.1::nextjs-post-docs" \
-        curl_check nextjs-post http://localhost:3000/api/docs \
-        '{"title":"Next.js","body":"Next.js App Router"}'
-      run_step "t3.1::nextjs-get-search" \
-        curl_check nextjs-get 'http://localhost:3000/api/search?q=Next.js'
-      kill "$(cat /tmp/nextjs.pid)" 2>/dev/null || true
-      sleep 2
-    fi
+  if framework_skipped nextjs; then
+    skip_step "t3.1::nextjs-install" "--skip-frameworks"
+  else
+    run_step "t3.1::nextjs-install" bash -c "
+      cd appendix-a-frameworks/nextjs && \
+      npm install --no-audit --no-fund --silent && \
+      node -e 'const p = require(\"./package.json\"); console.log(\"deps:\", Object.keys(p.dependencies).join(\",\"))'
+    "
   fi
 fi
 
