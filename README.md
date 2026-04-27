@@ -49,8 +49,8 @@ docker compose down -v
 | `ch04-schema/` | 第 4 章 | テーブル設計・DDL |
 | `ch05-embeddings/` | 第 5 章 | 埋め込みモデル比較(OpenAI / multilingual-e5 / Voyage) |
 | `ch06-chunking/` | 第 6 章 | 日本語 chunk 分割(MeCab / Sudachi / Janome) |
-| `ch07-hnsw-benchmark/` | 第 7 章 | HNSW チューニング実測(step-NN 構造) |
-| `ch08-ivfflat-benchmark/` | 第 8 章 | IVFFlat チューニング実測(step-NN 構造) |
+| `ch07-hnsw-benchmark/` | 第 7 章 | HNSW チューニング実測(setup → build-index → ground-truth → measure-recall) |
+| `ch08-ivfflat-benchmark/` | 第 8 章 | IVFFlat チューニング実測(同上) |
 | `ch09-hybrid-search/` | 第 9 章 | pgvector × PGroonga × tsvector RRF |
 | `ch10-observability/` | 第 10 章 | Grafana / Prometheus / pg_stat_statements |
 | `ch11-production-pitfalls/` | 第 11 章 | VACUUM / CONCURRENTLY / ポストフィルタ |
@@ -62,14 +62,56 @@ docker compose down -v
 
 ## CI
 
-GitHub Actions で以下を検証する(`.github/workflows/`):
+GitHub Actions で 3 段階の自動検証を回す。
+
+### docker-compose-smoke (毎 push, 約 1 分)
 
 - Docker image build
 - `docker compose up -d` が healthy になるまで起動
 - `psql \dx` で pgvector / PGroonga が両方存在
-- HNSW と PGroonga の index が実際に index scan で使われる(smoke test)
+- HNSW と PGroonga の index が index scan で使われる smoke test
 
-章別サンプルの build/test も順次 CI matrix に追加予定。
+### samples-tier1 (毎 push, 約 15 分, API キー不要)
+
+`scripts/verify-tier1.sh` を実行。Ch03-12 + 付録 A/C のサンプルを順次検証:
+
+- Ch04 の全 6 パターン DDL + migrations
+- Ch06 chunking 4 種(固定長/文境界/見出し/ハイブリッド)
+- **Ch07 HNSW: setup → build-index → ground-truth → measure-recall まで実走**(1000 件版で recall 計測)
+- **Ch08 IVFFlat: 同等の実測フロー**
+- Ch09 ハイブリッド検索の seed + 6 SQL 構文
+- Ch10 の SQL 5 種 + pg_stat_statements 拡張
+- Ch11 の 11 SQL(構文 + 一部実走)
+- Ch12 pgvectorscale Dockerfile build + 関連 SQL 構文
+- 付録 A 4 フレームワークの schema + コード構文
+- 付録 C 全スクリプト構文
+
+### samples-tier2 (週次 / 手動, 約 15 分, OPENAI_API_KEY 必要)
+
+`scripts/verify-tier2.sh` を実行(GitHub Secrets に `OPENAI_API_KEY` 必須):
+
+- Ch05 OpenAI / multilingual-e5 / Voyage の埋め込み実走(1 件のみ、コスト < $0.001)
+- Ch05 JMTEB-mini 縮小実測
+- 付録 C ingest → search → rag end-to-end
+
+### Tier 3 (手動)
+
+CI で自動化できない検証(4 フレームワーク起動 / Grafana / pgvectorscale 実機 / レプリケーション)
+は `docs/manual-verification.md` に手順書あり。出版前にローカルで 1 周通す想定。
+
+### ローカル全実走
+
+```bash
+# Tier 1 のみ(API キー不要)
+bash scripts/verify-all-samples.sh --tier 1
+
+# Tier 1 + Tier 2(OPENAI_API_KEY 環境変数必要)
+bash scripts/verify-all-samples.sh
+
+# 個別オプション
+bash scripts/verify-tier1.sh --skip-pgvectorscale  # Mac arm64 で自動 skip
+bash scripts/verify-tier2.sh --skip-e5              # 2.2GB ダウンロードを回避
+```
 
 ## ベンチマーク環境(本書の実測値の前提)
 

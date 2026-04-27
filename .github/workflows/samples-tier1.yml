@@ -1,0 +1,71 @@
+name: samples-tier1
+
+# Tier 1: API キー不要のサンプル全体検証
+# - Ch03-12 + 付録 A/C の SQL/Python/シェルを順次実走
+# - Ch07/08 は CI 専用の 1,000 件版(setup-ci.sql)で recall 計測まで通す
+# - Ch12 pgvectorscale は Dockerfile build まで
+# - フレームワーク起動 / Grafana / OpenAI 実走は Tier 2 / Tier 3 で分担
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  tier1-verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build PostgreSQL + pgvector + PGroonga image
+        run: docker compose build
+
+      - name: Start container
+        run: docker compose up -d --wait
+
+      - name: Wait for healthy
+        run: |
+          for i in {1..40}; do
+            status=$(docker inspect -f '{{.State.Health.Status}}' pgvector-rag-postgres 2>/dev/null || echo "missing")
+            echo "[$i] health: $status"
+            if [ "$status" = "healthy" ]; then exit 0; fi
+            if [ "$status" = "unhealthy" ]; then
+              docker compose logs postgres
+              exit 1
+            fi
+            sleep 3
+          done
+          echo "Timed out waiting for healthy"
+          docker compose logs postgres
+          exit 1
+
+      - name: Run Tier 1 verification
+        run: bash scripts/verify-tier1.sh --skip-build
+
+      - name: Show PostgreSQL / pgvector / PGroonga versions
+        if: always()
+        run: |
+          docker exec pgvector-rag-postgres psql -U rag -d ragdb -c "
+            SELECT version();
+            SELECT extname, extversion FROM pg_extension
+              WHERE extname IN ('vector','pgroonga')
+              ORDER BY extname;
+          "
+
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v

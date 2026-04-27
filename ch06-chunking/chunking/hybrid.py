@@ -7,10 +7,16 @@
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass
+from pathlib import Path
 
-from .heading_based import HeadingChunk, split_by_headings
-from .sentence_boundary import sentence_chunk
+# 単独実行 (`python hybrid.py`) と package 実行 (`python -m chunking.hybrid`)
+# の両方をサポートするため、同階層を sys.path に追加してから絶対 import する。
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+from heading_based import HeadingChunk, split_by_headings  # noqa: E402
+from sentence_boundary import sentence_chunk  # noqa: E402
 
 
 MAX_CHARS = 400

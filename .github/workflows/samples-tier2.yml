@@ -1,0 +1,76 @@
+name: samples-tier2
+
+# Tier 2: API キー必要 + やや重いサンプル検証
+# - ch05 OpenAI/e5/Voyage embedding (1 件のみ実走)
+# - ch05 jmteb-mini 縮小実測
+# - 付録 C ingest → search → rag end-to-end
+#
+# 実行頻度:
+# - workflow_dispatch (手動)
+# - 週次 cron (UTC 月曜 03:00 = JST 月曜 12:00)
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * 1"
+
+jobs:
+  tier2-verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Cache HuggingFace models (multilingual-e5)
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: hf-multilingual-e5-large-v2
+          restore-keys: |
+            hf-multilingual-e5-
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build PostgreSQL + pgvector + PGroonga image
+        run: docker compose build
+
+      - name: Start container
+        run: docker compose up -d --wait
+
+      - name: Wait for healthy
+        run: |
+          for i in {1..40}; do
+            status=$(docker inspect -f '{{.State.Health.Status}}' pgvector-rag-postgres 2>/dev/null || echo "missing")
+            echo "[$i] health: $status"
+            if [ "$status" = "healthy" ]; then exit 0; fi
+            sleep 3
+          done
+          docker compose logs postgres
+          exit 1
+
+      - name: Run Tier 2 verification
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          VOYAGE_API_KEY: ${{ secrets.VOYAGE_API_KEY }}
+        run: |
+          if [ -z "${OPENAI_API_KEY:-}" ]; then
+            echo "ERROR: OPENAI_API_KEY secret is not set."
+            echo "Configure it via:"
+            echo "  gh secret set OPENAI_API_KEY --repo \$GITHUB_REPOSITORY"
+            exit 2
+          fi
+          # 付録C のためのテーブル準備(setup.sql)
+          bash scripts/verify-tier2.sh
+
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v

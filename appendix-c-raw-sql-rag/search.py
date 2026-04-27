@@ -23,9 +23,9 @@ def search(query: str, top_k: int = 20) -> list[dict]:
             cur.execute(
                 """
                 SELECT id, title, body, metadata,
-                       1 - (embedding <=> %s) AS similarity
+                       1 - (embedding <=> %s::vector) AS similarity
                 FROM   docs
-                ORDER  BY embedding <=> %s
+                ORDER  BY embedding <=> %s::vector
                 LIMIT  %s
                 """,
                 (qvec, qvec, top_k),

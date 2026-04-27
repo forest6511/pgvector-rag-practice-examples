@@ -1,8 +1,12 @@
 -- 付録C 用の docs テーブルと HNSW インデックス
+-- 本文 Ch09 や付録 A も同じ DB に docs テーブルを作るため、
+-- 本付録専用のスキーマで再作成する(他章のスキーマを破壊しないために必要)。
 
 CREATE EXTENSION IF NOT EXISTS vector;
 
-CREATE TABLE IF NOT EXISTS docs (
+DROP TABLE IF EXISTS docs CASCADE;
+
+CREATE TABLE docs (
     id         bigserial PRIMARY KEY,
     title      text  NOT NULL,
     body       text  NOT NULL,
