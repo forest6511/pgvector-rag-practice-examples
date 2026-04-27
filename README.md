@@ -58,7 +58,7 @@ docker compose down -v
 | `appendix-a-frameworks/` | 付録 A | Rails / Django / FastAPI / Next.js |
 | `appendix-c-raw-sql-rag/` | 付録 C | LangChain 非依存の素 SQL RAG |
 
-各章ディレクトリには独立した `README.md` と実行手順がある(Phase 2 以降順次追加)。
+各章ディレクトリには独立した `README.md` と実行手順がある。
 
 ## CI
 
@@ -82,7 +82,7 @@ GitHub Actions で 3 段階の自動検証を回す。
 - Ch09 ハイブリッド検索の seed + 6 SQL 構文
 - Ch10 の SQL 5 種 + pg_stat_statements 拡張
 - Ch11 の 11 SQL(構文 + 一部実走)
-- Ch12 pgvectorscale Dockerfile の構文 + 関連 SQL 構文(実 build は `docs/manual-verification.md` T3.3)
+- Ch12 pgvectorscale Dockerfile の構文 + 関連 SQL 構文(実 build は samples-tier3 で自動検証)
 - 付録 A 4 フレームワークの schema + コード構文
 - 付録 C 全スクリプト構文
 
