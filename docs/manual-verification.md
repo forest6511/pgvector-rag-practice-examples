@@ -218,14 +218,38 @@ docker compose down -v
 
 ## T3.3 Ch12 pgvectorscale 実機検証
 
-`docker build` 自体は Tier 1 でカバーしているが、実際に **ベクトルテーブルに DiskANN インデックスを張って検索が成立する** ところまでは手動。
+`postgresql-17-pgvectorscale` パッケージは Tigerdata 公式 apt repo にあり、`timescale/timescaledb-ha:pg17` の base image には含まれていない。そのため **Dockerfile に apt repo の追加が必要**。
+
+本書本文の Dockerfile はあくまで「最短の例示」であり、実 build には以下の Dockerfile を使う(または本文の Dockerfile に下記の `RUN` ブロックを追加する)。
+
+### 完全動作する Dockerfile
+
+```dockerfile
+FROM timescale/timescaledb-ha:pg17
+USER root
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      curl gnupg lsb-release ca-certificates && \
+    curl -fsSL https://packagecloud.io/timescale/timescaledb/gpgkey \
+      | gpg --dearmor -o /etc/apt/keyrings/timescaledb.gpg && \
+    echo "deb [signed-by=/etc/apt/keyrings/timescaledb.gpg] \
+      https://packagecloud.io/timescale/timescaledb/debian/ $(lsb_release -cs) main" \
+      > /etc/apt/sources.list.d/timescaledb.list && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends postgresql-17-pgvectorscale && \
+    rm -rf /var/lib/apt/lists/*
+
+USER postgres
+```
 
 ### 手順
 
 ```bash
 cd ch12-scaling-migration/pgvectorscale
+# (上記 Dockerfile を Dockerfile.full として保存し、または既存 Dockerfile を編集)
 
-# 1. 独自イメージビルド(5-10 分)
+# 1. 独自イメージビルド(5-10 分、初回は apt update + curl 取得で時間がかかる)
 docker build -t pgvector-rag-pgvs .
 
 # 2. 起動

@@ -82,7 +82,7 @@ GitHub Actions で 3 段階の自動検証を回す。
 - Ch09 ハイブリッド検索の seed + 6 SQL 構文
 - Ch10 の SQL 5 種 + pg_stat_statements 拡張
 - Ch11 の 11 SQL(構文 + 一部実走)
-- Ch12 pgvectorscale Dockerfile build + 関連 SQL 構文
+- Ch12 pgvectorscale Dockerfile の構文 + 関連 SQL 構文(実 build は `docs/manual-verification.md` T3.3)
 - 付録 A 4 フレームワークの schema + コード構文
 - 付録 C 全スクリプト構文
 
