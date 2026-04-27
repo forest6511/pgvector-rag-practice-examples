@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: ghcr.io/pgvector/pgvector:pg17
+    image: pgvector/pgvector:0.8.2-pg17-trixie
     environment:
       POSTGRES_USER: rag
       POSTGRES_PASSWORD: rag
@@ -28,7 +28,7 @@ services:
     depends_on: [prometheus]
 
   pgbouncer:
-    image: edoburu/pgbouncer:1.23.1
+    image: edoburu/pgbouncer:latest
     environment:
       DB_USER: rag
       DB_PASSWORD: rag

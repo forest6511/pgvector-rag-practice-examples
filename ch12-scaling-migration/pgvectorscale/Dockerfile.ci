@@ -1,0 +1,10 @@
+# pgvectorscale CI 動作検証用 Dockerfile。
+#
+# timescale/timescaledb-ha:pg17 イメージには pgvectorscale 0.9.0 が
+# /usr/lib/postgresql/17/lib/vectorscale-0.9.0.so として同梱されている。
+# そのため apt install は不要で、image をそのまま使える。
+#
+# 本書本文 (Ch12) の Dockerfile は「自前で apt repo 追加して install する例」
+# を示しているが、実用上は本ファイルのように image をそのまま使うのが最短。
+
+FROM timescale/timescaledb-ha:pg17

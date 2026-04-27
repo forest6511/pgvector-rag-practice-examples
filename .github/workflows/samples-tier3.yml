@@ -1,0 +1,89 @@
+name: samples-tier3
+
+# Tier 3: 環境依存 / 複数インスタンスのフル動作検証
+# T3.1 付録 A 4 フレームワーク起動 + curl
+# T3.2 Ch10 Grafana / Prometheus / postgres_exporter スタック
+# T3.3 Ch12 pgvectorscale Dockerfile.ci build + DiskANN 動作
+# T3.4 Ch11 Logical Replication の 2 インスタンス
+#
+# 実行頻度:
+# - workflow_dispatch (手動)
+# - 週次 cron (UTC 月曜 04:00 = JST 月曜 13:00、Tier 2 の 1 時間後)
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 4 * * 1"
+
+jobs:
+  tier3-verify:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.3"
+          bundler-cache: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build PostgreSQL + pgvector + PGroonga image
+        run: docker compose build
+
+      - name: Start base container
+        run: docker compose up -d --wait
+
+      - name: Wait for healthy
+        run: |
+          for i in {1..40}; do
+            status=$(docker inspect -f '{{.State.Health.Status}}' pgvector-rag-postgres 2>/dev/null || echo "missing")
+            echo "[$i] health: $status"
+            if [ "$status" = "healthy" ]; then exit 0; fi
+            sleep 3
+          done
+          docker compose logs postgres
+          exit 1
+
+      - name: Run Tier 3 verification
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        run: |
+          if [ -z "${OPENAI_API_KEY:-}" ]; then
+            echo "WARNING: OPENAI_API_KEY not set — t3.1 (frameworks) will be skipped"
+          fi
+          bash scripts/verify-tier3.sh
+
+      - name: Show framework logs on failure
+        if: failure()
+        run: |
+          for f in /tmp/fastapi.log /tmp/django.log /tmp/rails.log /tmp/nextjs.log; do
+            if [ -f "$f" ]; then
+              echo "=== $f ==="
+              tail -50 "$f"
+            fi
+          done
+
+      - name: Cleanup
+        if: always()
+        run: |
+          docker compose down -v 2>/dev/null || true
+          (cd ch10-observability && docker compose down -v 2>/dev/null) || true
+          docker rm -f pgvs-ci-test pg-pub-test pg-sub-test 2>/dev/null || true
+          docker network rm rag-replication-net 2>/dev/null || true

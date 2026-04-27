@@ -94,10 +94,17 @@ GitHub Actions で 3 段階の自動検証を回す。
 - Ch05 JMTEB-mini 縮小実測
 - 付録 C ingest → search → rag end-to-end
 
-### Tier 3 (手動)
+### samples-tier3 (週次 / 手動, 約 30-45 分, OPENAI_API_KEY 必要)
 
-CI で自動化できない検証(4 フレームワーク起動 / Grafana / pgvectorscale 実機 / レプリケーション)
-は `docs/manual-verification.md` に手順書あり。出版前にローカルで 1 周通す想定。
+`scripts/verify-tier3.sh` を実行。Tier 1/2 で自動化できなかった重い検証を統合:
+
+- **T3.1** 付録 A 4 フレームワーク (Rails / Django / FastAPI / Next.js) を順次起動して `POST /docs` + `GET /search` curl 動作確認
+- **T3.2** Ch10 Grafana スタック (Prometheus + postgres_exporter + Grafana) で `pg_up` メトリクス取得 + Datasource 追加 + クエリ動作
+- **T3.3** Ch12 pgvectorscale (`Dockerfile.ci`) build + DiskANN index 作成 + EXPLAIN 動作
+- **T3.4** Ch11 Logical Replication (publisher / subscriber 2 インスタンス) で row 同期動作
+
+T3.2/3/4 はローカルでも実走可能 (`bash scripts/verify-tier3.sh --only=t32` 等)。
+T3.1 はローカル実行に Ruby 3.3 / Node 22 / Python 3.12 環境が必要。
 
 ### ローカル全実走
 
