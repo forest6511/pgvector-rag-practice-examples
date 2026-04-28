@@ -1,10 +1,6 @@
 # pgvector-rag-practice-examples
 
-書籍 **『pgvectorで作る実務ベクトル検索 ― PostgreSQL 1台で始めるRAGデータ基盤』**(森川 陽介 / KDP)のサンプルコード。
-
-- Amazon: [pgvectorで作る実務ベクトル検索](https://www.amazon.co.jp/s?k=pgvector%E3%81%A7%E4%BD%9C%E3%82%8B%E5%AE%9F%E5%8B%99%E3%83%99%E3%82%AF%E3%83%88%E3%83%AB%E6%A4%9C%E7%B4%A2&i=stripbooks)
-- 著者: 森川 陽介(もりかわ ようすけ)
-- ライセンス: MIT
+書籍 **『[pgvectorで作る実務ベクトル検索 ― PostgreSQL 1台で始めるRAGデータ基盤](https://www.amazon.co.jp/s?k=pgvector%E3%81%A7%E4%BD%9C%E3%82%8B%E5%AE%9F%E5%8B%99%E3%83%99%E3%82%AF%E3%83%88%E3%83%AB%E6%A4%9C%E7%B4%A2&i=stripbooks)』**(森川 陽介 / KDP)のサンプルコード。
 
 ## 動作スタック
 
